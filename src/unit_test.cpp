@@ -43,9 +43,9 @@ void unit_test::run_all()
     {
         try {
             (*i)->operator()();
-        } catch (std::exception e)
+        } catch (std::exception & e)
         {
-            cout << terminal::red << e.what() << terminal::reset << endl;
+            cout << terminal::red << "[failed with exception] " << e.what() << terminal::reset << endl;
         }
     }
 }

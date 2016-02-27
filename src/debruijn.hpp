@@ -17,6 +17,14 @@
 #include <string>
 #include <unordered_set>
 
+/* haven't set up with an IDE that lets me step through, so... */
+#if false
+#define DEBUG_WATCH(v) std::cout << #v << " = " << v << std::endl;
+#define DEBUG_OUT(msg) std::cout << msg << std::endl;
+#else
+#define DEBUG_WATCH(v)
+#define DEBUG_OUT(msg)
+#endif
 
 class debruijn
 {
@@ -31,7 +39,14 @@ class debruijn
            suffixed with - flag if necessary e.g. T or G- */
         std::string edge;
     };
-    static bool edge_sort_function (const edge & i, const edge & j) { return i.node_rev < j.node_rev; }
+    static bool edge_sort_function (const edge & i, const edge & j) { 
+        if (i.node_rev == j.node_rev) 
+            // i observed in the paper that W is sorted in increasing order too whenever the nodes are the same
+            // probably makes no difference but making the implementation match the paper exactly
+            return i.edge < j.edge;
+        else 
+            return i.node_rev < j.node_rev; 
+    }
     
     
     /* the indexes of the start of each letter in the last column of the nodes list */
@@ -102,8 +117,12 @@ public:
         
         // generate L (by going backwards through the nodes)
         std::string last_node = "";
-        for (auto  i = edges.rend(); i != edges.rbegin(); i--)
+        for (int ix = edges.size()-1;ix >= 0;ix --)
         {
+            edge * i = &edges[ix];
+            DEBUG_WATCH(last_node)
+            DEBUG_WATCH(i->node_rev)
+            
             if (last_node != i->node_rev)
             {
                 last_node = i->node_rev;
@@ -126,7 +145,7 @@ public:
                 alphabet_index++;                
             }
             edge_index ++;
-            ///std::cout << (*i).node_rev << " " << (*i).edge << std::endl;
+            std::cout << (*i).node_rev << " " << (*i).edge << std::endl;
             W.push_back(i->edge);
         }
     }    
@@ -167,12 +186,19 @@ public:
                 if (counter == i) return j;
             }
         }
+        DEBUG_OUT("select")
+        DEBUG_WATCH(i)
+        DEBUG_WATCH(list.size())
+        DEBUG_WATCH(counter)
         throw std::runtime_error("select out of range");
     }
     
     /* return index of the last edge of the node pointed to by edge i */
     edge_index_t forward(edge_index_t i)
     {
+        DEBUG_OUT("forward")
+        DEBUG_WATCH(i)
+        
         // find the edge label
         std::string C = W[i];
         
@@ -185,11 +211,17 @@ public:
             throw std::runtime_error("alphabet not recognised");    
         size_t first_occurance = F[alphabet_index];
         
-        // step 3 - count the Cs before the first occurange
-        size_t Cs_before = rank(L,"1",first_occurance);
+        // step 3 - find rank of the edge just before the base (hence the minus 1)
+        size_t rank_to_base = rank(L,"1",first_occurance-1);
         
         // step 4 - add r and "select" to find the edge index of the r'th edge of the node
-        size_t result = select(L,"1",Cs_before + r);
+        DEBUG_WATCH(alphabet_index)
+        DEBUG_WATCH(first_occurance)
+        DEBUG_WATCH(C)
+        DEBUG_WATCH(r);
+        DEBUG_WATCH(rank_to_base);
+        size_t result = select(L,"1",rank_to_base + r); // -1 because if r is 1 we want the first edge of the set not the second..
+        DEBUG_WATCH(result);
         
         return result;        
     }
@@ -232,9 +264,30 @@ public:
     
     /* return the node you get to by following edge labelled by symbol c,
        or no_node if there is no edge */
-    node_index_t outgoing(node_index_t v, char c)
+    node_index_t outgoing(node_index_t v, std::string C)
     {
-        return no_node;
+        // step 0 (not in the paper)
+        // find the last edge of the node
+        edge_index_t first_edge = select(L,"1",v)+1;
+        edge_index_t last_edge = select(L,"1",v+1);
+        
+        // step 1 - find the number of C's before first edge with matching C
+        int C_index = rank(W,C,last_edge);
+        
+        // then select the C_index'th C 
+        edge_index_t C_edge = select(W,C,C_index);
+        
+        // is it within the range of this node?    
+        if (C_edge < first_edge) return no_node;
+        
+        // return the last edge of the node that C_edge points to
+        edge_index_t outgoing_edge = forward(C_edge);
+        DEBUG_WATCH(outgoing_edge)
+        
+        // and convert to a node index
+        // (subtract 1 because if the rank is 1 it is the first node = 0th)
+        node_index_t outgoing_node = rank(L,"1",outgoing_edge) - 1;
+        return outgoing_node;
     }
 };
 
