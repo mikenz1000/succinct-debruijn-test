@@ -1,11 +1,10 @@
 /*
-    Very primitive/simple succint de Bruijn implementation using strings that should be easy to follow
+    Very simple (easy to follow?) Succint de Bruijn implementation using strings that should be easy to follow
     
     See http://alexbowe.com/succinct-debruijn-graphs/
     
-    This is an exercise in understanding how these things work.  Next version will be more optimised!
-    
-    The kmer length is k.  the node length is therefore k-1.
+    This is an exercise in understanding the algorithm.  Not in any way meant to be efficient...
+ 
 */
     
 #ifndef __DEBRUIJN_HPP
