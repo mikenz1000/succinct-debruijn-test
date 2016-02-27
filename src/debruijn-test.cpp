@@ -38,8 +38,9 @@ class test_debruijn_t : public unit_test
         db.dump();
                 
         // and .. test it
-        check(db.forward(2) == 5, "forward(2) == 5");
-        check(db.backward(5) == 2, "backward(5) == 2");
+        check_equal<debruijn::edge_index_t>(db.forward(2),5, "forward(2)");
+        check_equal<debruijn::edge_index_t>(db.backward(5),2, "backward(5)");
+        check_equal<debruijn::edge_index_t>(db.outdegree(6),2, "outdegree(6)");
         
         
     }

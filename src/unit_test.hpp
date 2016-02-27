@@ -3,6 +3,7 @@
 */
 #ifndef __UNIT_TEST_HPP
 #define __UNIT_TEST_HPP
+#include <sstream>
 
 class unit_test
 {
@@ -11,8 +12,18 @@ protected:
     void section(const char * name);
     
     /* Call this to record the outcome of each test 
-       If outcome is false the test failed */
-    void check(bool outcome, const char * description);
+       If outcome is false the test failed 
+       returns outcome so you can abort the rest of the test if that makes sense */
+    bool check(bool outcome, const char * description);
+    
+    template<typename T>
+    bool check_equal(const T & desired, const T & actual, const char * description)
+    {
+        std::stringstream s;
+        s << description; 
+        s << " (desired = " << desired << ", actual = " << actual << ")";
+        return check(desired == actual, s.str().c_str());
+    }
 public:
     /* this method must be overridden in order to execute the test */
     virtual void operator() () = 0;    

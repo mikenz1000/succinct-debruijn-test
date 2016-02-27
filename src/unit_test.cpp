@@ -19,7 +19,7 @@ void unit_test::section(const char * name)
     std::cout << "[section] " << name << terminal::reset << endl;
 }
 
-void unit_test::check(bool outcome, const char * description)
+bool unit_test::check(bool outcome, const char * description)
 {
     if (!outcome)
     {
@@ -29,6 +29,7 @@ void unit_test::check(bool outcome, const char * description)
     {
         std::cout << terminal::light_gray << "[passed] " << description << terminal::reset << endl;
     }
+    return outcome;
 }
 
 unit_test::unit_test()

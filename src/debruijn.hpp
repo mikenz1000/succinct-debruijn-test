@@ -21,10 +21,6 @@
 
 class debruijn
 {
-    /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
-    typedef size_t edge_index_t;
-    typedef size_t node_index_t;
-    
     /* when we build the graph we need to store this edge data
        it corresponds to one row in the tables in the paper 
        e.g. the second row of the table in the paper is CGA C */
@@ -48,7 +44,15 @@ class debruijn
     
     /* The array of bits indicating if this edge is the last for the node, stored as '0' and '1' */
     std::vector<std::string> L;
+    
 public:  
+     /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
+    typedef size_t edge_index_t;
+    typedef size_t node_index_t;
+    
+    /* the node index value for no node (possible return value from some traversal functions) */
+    const node_index_t no_node = (node_index_t)(-1);
+
     /* constructor builds the graph */
     debruijn(const std::vector<std::string> & kmers)
     {                   
@@ -123,7 +127,7 @@ public:
                 alphabet_index++;                
             }
             edge_index ++;
-            std::cout << (*i).node_rev << " " << (*i).edge << std::endl;
+            ///std::cout << (*i).node_rev << " " << (*i).edge << std::endl;
             W.push_back(i->edge);
         }
     }    
@@ -213,6 +217,26 @@ public:
         return select(W,C,r);
     }
     
+    /* return the number of outgoing edges from node v */
+    int outdegree(node_index_t v)
+    {
+        // select to find the position of the v'th 1
+        edge_index_t position = select(L, "1", v);
+        
+        // select to find the position of the previous node (v-1)th */
+        edge_index_t previous = (v == 0) ? 0 : select(L, "1", v-1);      
+        
+        // "boom!" the difference between the edge indexes tells us how many edges leave that node (minus one)
+        // slight typo in the text it should be select(7) - select(6) + 1 = 7 - 6 + 1 = 2 */
+        return position - previous + 1;  
+    }
+    
+    /* return the node you get to by following edge labelled by symbol c,
+       or no_node if there is no edge */
+    node_index_t outgoing(node_index_t v, char c)
+    {
+        return no_node;
+    }
 };
 
 #endif
