@@ -124,8 +124,6 @@ public:
         for (int ix = edges.size()-1;ix >= 0;ix --)
         {
             edge * i = &edges[ix];
-            DEBUG_WATCH(last_node)
-            DEBUG_WATCH(i->node_rev)
             
             if (last_node != i->node_rev)
             {
@@ -182,10 +180,6 @@ public:
        or list.size() if there are only i-1 occurances */
     size_t select(const std::vector<std::string> & list, const std::string & c, size_t i)
     {
-//        if (i == 0) return 0;
-        DEBUG_OUT("select")
-        DEBUG_WATCH(i)
-        DEBUG_WATCH(list.size())
         size_t counter = 0;
         for (size_t j = 0;j < list.size(); j++)
         {
@@ -195,7 +189,6 @@ public:
                 if (counter == i) return j;
             }
         }
-        DEBUG_WATCH(counter)
         
         // if we try to select the n+1'th when there are only n, return the index one past the end of the array
         if (counter == i-1) return list.size();
@@ -206,9 +199,6 @@ public:
     /* return index of the last edge of the node pointed to by edge i */
     edge_index_t forward(edge_index_t i)
     {
-        DEBUG_OUT("forward")
-        DEBUG_WATCH(i)
-        
         // find the edge label
         std::string C = W[i];
         
@@ -217,7 +207,6 @@ public:
         
         // step 2 - find first occurance
         std::string::size_type alphabet_index = alphabet.find(C[0]);    
-        DEBUG_WATCH(alphabet_index)
         if (alphabet_index == std::string::npos) 
             throw std::runtime_error("alphabet not recognised"); 
             
@@ -226,19 +215,12 @@ public:
             return no_node; 
             
         size_t first_occurance = F[alphabet_index];
-        DEBUG_WATCH(first_occurance)
         
         // step 3 - find rank of the edge just before the base (hence the minus 1)
         size_t rank_to_base = (first_occurance == 0) ? 0 : rank(L,"1",first_occurance-1);
         
         // step 4 - add r and "select" to find the edge index of the r'th edge of the node
-        DEBUG_WATCH(C)
-        DEBUG_WATCH(r);
-        DEBUG_WATCH(rank_to_base);
-        
         size_t result = select(L,"1",rank_to_base + r); 
-        // -1 because if r is 1 we want the first edge of the set not the second..
-        DEBUG_WATCH(result);
         
         return result;        
     }
@@ -246,16 +228,11 @@ public:
     /* return index of the first edge that points to the node that the edge at i exists */
     edge_index_t backward(edge_index_t i)
     {
-        DEBUG_OUT("backward")
-        DEBUG_WATCH(i)
-        // find the letter of the node edge i comes from...
-        
         // step 1 - reverse lookup into F to find which letter must be in the last column of the node list
         size_t alphabet_index = F.size()-1;
         while (F[alphabet_index] > i) alphabet_index--;
         std::string C;
         C.push_back(alphabet[alphabet_index]);    
-        DEBUG_WATCH(C)
         
         // can't go backwards from $
         if (alphabet_index == 0) return no_node;
@@ -266,8 +243,6 @@ public:
         // we don't know if we point to an edge that has L=1 or L=0 so rank to the edge BELOW it, which will either
         // be the same node and L=0 OR the node below, 
         size_t rank_to_current_edge = (i == 0) ? 0 : rank(L, "1", i-1);
-        DEBUG_WATCH(rank_to_base)
-        DEBUG_WATCH(rank_to_current_edge)
         
         // step 3.2 "we are at second C" or whatever
         size_t r = rank_to_current_edge - rank_to_base + 1;
@@ -310,7 +285,6 @@ public:
         
         // return the last edge of the node that C_edge points to
         edge_index_t outgoing_edge = forward(C_edge);
-        DEBUG_WATCH(outgoing_edge)
         
         // and convert to a node index
         // (subtract 1 because if the rank is 1 it is the first node = 0th)
@@ -321,9 +295,6 @@ public:
     /* returns the k-1 length label of the node pointed to by v */
     std::string label(node_index_t v)
     {
-        DEBUG_OUT("label");
-        DEBUG_WATCH(v);
-
         std::string result;
         // convert to edge index
         // add one because using zero-based node index
@@ -335,9 +306,6 @@ public:
             // lookup in F
             int alphabet_index = 4;
             while (F[alphabet_index] > i) alphabet_index--;
-            DEBUG_WATCH(todo)
-            DEBUG_WATCH(i)
-            DEBUG_WATCH(alphabet_index)
             
             // and add to the front of the string        
             result.insert(result.begin(), alphabet[alphabet_index]);
@@ -354,16 +322,11 @@ public:
     
     int indegree(node_index_t v)
     {
-        DEBUG_OUT("indegree")
-        DEBUG_WATCH(v)
-        
         // find the index of the first edge of the node`
         edge_index_t edge = select(L,"1",v+1); 
-        DEBUG_WATCH(edge)
         
         // and go backwards to the first edge which can't be a flagged edge (because it's the first)
         edge_index_t first_edge = backward(edge);
-        DEBUG_WATCH(first_edge)
         
         if (first_edge == no_node) return 0; // indegree is zero if backward fails
         
@@ -371,18 +334,14 @@ public:
         std::string C;
         C.push_back(W[first_edge][0]);
         edge_index_t symbol_pos = rank(W,C,first_edge);
-        DEBUG_WATCH(symbol_pos)
-
+        
         // advance one to find the position of the next non-flagged version of this symbol
         edge_index_t last_edge = select(W,C,symbol_pos+1);
-        DEBUG_WATCH(last_edge)
-
+        
         // now count the number of flagged symbols between these two positions
         C.push_back('-');
         edge_index_t flagged_below_first = rank(W,C,first_edge);
         edge_index_t flagged_below_last = rank(W,C,last_edge);
-        DEBUG_WATCH(flagged_below_first)
-        DEBUG_WATCH(flagged_below_last)
         
         // and the difference + 1 is the number of incoming edges
         return flagged_below_last - flagged_below_first + 1;
@@ -391,7 +350,7 @@ public:
     /* return the predecessing node starting with the given symbol */
     node_index_t incoming(node_index_t, std::string C)
     {
-        
+        return no_node;    
     }
     
     
