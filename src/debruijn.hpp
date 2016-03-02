@@ -207,20 +207,27 @@ public:
         
         // step 2 - find first occurance
         std::string::size_type alphabet_index = alphabet.find(C[0]);    
+        DEBUG_WATCH(alphabet_index)
         if (alphabet_index == std::string::npos) 
-            throw std::runtime_error("alphabet not recognised");    
+            throw std::runtime_error("alphabet not recognised"); 
+            
+        // can't follow a $ edge  
+        if (alphabet_index == 0)
+            return no_node; 
+            
         size_t first_occurance = F[alphabet_index];
+        DEBUG_WATCH(first_occurance)
         
         // step 3 - find rank of the edge just before the base (hence the minus 1)
-        size_t rank_to_base = rank(L,"1",first_occurance-1);
+        size_t rank_to_base = (first_occurance == 0) ? 0 : rank(L,"1",first_occurance-1);
         
         // step 4 - add r and "select" to find the edge index of the r'th edge of the node
-        DEBUG_WATCH(alphabet_index)
-        DEBUG_WATCH(first_occurance)
         DEBUG_WATCH(C)
         DEBUG_WATCH(r);
         DEBUG_WATCH(rank_to_base);
-        size_t result = select(L,"1",rank_to_base + r); // -1 because if r is 1 we want the first edge of the set not the second..
+        
+        size_t result = select(L,"1",rank_to_base + r); 
+        // -1 because if r is 1 we want the first edge of the set not the second..
         DEBUG_WATCH(result);
         
         return result;        
