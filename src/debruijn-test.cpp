@@ -40,6 +40,10 @@ class test_debruijn_t : public unit_test
         // and .. test it
         check_equal(5UL, db.forward(2), "forward(2)");
         check_equal(2UL, db.backward(5), "backward(5)");
+        check_equal(7UL, db.backward(1), "backward(1)");
+        check_equal(3UL, db.backward(7), "backward(1)");
+        check_equal(db.no_node, db.backward(0), "backward(1)");
+        
         check_equal(2, db.outdegree(6), "outdegree(6)");
         check_equal(12UL, db.forward(8), "forward(8)");
         check_equal(10UL, db.outgoing(6,"T"), "outgoing(6,T)");
@@ -62,7 +66,22 @@ class test_debruijn_t : public unit_test
         };
         for (int i = 0; i < 13;i ++)
             check_equal(forward_expected[i], db.forward(i), "forward(i)");
+        check_equal(std::string("$$$"), db.label(0), "label(0)");
+        check_equal(std::string("CGA"), db.label(1), "label(1)");
+        check_equal(std::string("$TA"), db.label(2), "label(2)");
+        check_equal(std::string("GAC"), db.label(3), "label(3)");
+        check_equal(std::string("TAC"), db.label(4), "label(4)");
+        check_equal(std::string("GTC"), db.label(5), "label(5)");
+        check_equal(std::string("ACG"), db.label(6), "label(6)");
+        check_equal(std::string("TCG"), db.label(7), "label(7)");
+        check_equal(std::string("$$T"), db.label(8), "label(8)");
+        check_equal(std::string("ACT"), db.label(9), "label(9)");
+        check_equal(std::string("CGT"), db.label(10), "label(10)");
         
+        check_equal(0,db.indegree(0), "indegree(0)");
+        check_equal(2,db.indegree(1), "indegree(1)");
+        check_equal(2,db.indegree(6), "indegree(6)");
+        check_equal(1,db.indegree(2), "indegree(2)");
     }
     
 } test_debruijn;

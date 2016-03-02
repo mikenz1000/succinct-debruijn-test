@@ -59,6 +59,9 @@ class debruijn
     /* The array of bits indicating if this edge is the last for the node, stored as '0' and '1' */
     std::vector<std::string> L;
     
+    /* the length of the kmers */
+    int k;
+    
 public:  
      /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
     typedef size_t edge_index_t;
@@ -69,7 +72,8 @@ public:
 
     /* constructor builds the graph */
     debruijn(const std::vector<std::string> & kmers)
-    {                   
+    {             
+        k = kmers[0].length();      
         std::vector<edge> edges;
         
         // avoid processing kmers more than once
@@ -148,6 +152,7 @@ public:
             std::cout << (*i).node_rev << " " << (*i).edge << std::endl;
             W.push_back(i->edge);
         }
+        
     }    
     
     /* write the graph data to cout */
@@ -173,10 +178,14 @@ public:
         return result;
     }
     
-    /* return the position of the ith occurance of c */
+    /* return the position of the ith occurance of c
+       or list.size() if there are only i-1 occurances */
     size_t select(const std::vector<std::string> & list, const std::string & c, size_t i)
     {
 //        if (i == 0) return 0;
+        DEBUG_OUT("select")
+        DEBUG_WATCH(i)
+        DEBUG_WATCH(list.size())
         size_t counter = 0;
         for (size_t j = 0;j < list.size(); j++)
         {
@@ -186,10 +195,11 @@ public:
                 if (counter == i) return j;
             }
         }
-        DEBUG_OUT("select")
-        DEBUG_WATCH(i)
-        DEBUG_WATCH(list.size())
         DEBUG_WATCH(counter)
+        
+        // if we try to select the n+1'th when there are only n, return the index one past the end of the array
+        if (counter == i-1) return list.size();
+        
         throw std::runtime_error("select out of range");
     }
     
@@ -236,6 +246,8 @@ public:
     /* return index of the first edge that points to the node that the edge at i exists */
     edge_index_t backward(edge_index_t i)
     {
+        DEBUG_OUT("backward")
+        DEBUG_WATCH(i)
         // find the letter of the node edge i comes from...
         
         // step 1 - reverse lookup into F to find which letter must be in the last column of the node list
@@ -243,13 +255,22 @@ public:
         while (F[alphabet_index] > i) alphabet_index--;
         std::string C;
         C.push_back(alphabet[alphabet_index]);    
+        DEBUG_WATCH(C)
+        
+        // can't go backwards from $
+        if (alphabet_index == 0) return no_node;
         
         // steps 2 & 3.1 - find the rank in L to the base and the current edge 
-        size_t rank_to_base = rank(L, "1", F[alphabet_index]);
-        size_t rank_to_current_edge = rank(L, "1", i);
+        size_t rank_to_base = (alphabet_index == 0) ? 0 : rank(L, "1", F[alphabet_index]-1);
+        
+        // we don't know if we point to an edge that has L=1 or L=0 so rank to the edge BELOW it, which will either
+        // be the same node and L=0 OR the node below, 
+        size_t rank_to_current_edge = (i == 0) ? 0 : rank(L, "1", i-1);
+        DEBUG_WATCH(rank_to_base)
+        DEBUG_WATCH(rank_to_current_edge)
         
         // step 3.2 "we are at second C" or whatever
-        size_t r = rank_to_current_edge - rank_to_base;
+        size_t r = rank_to_current_edge - rank_to_base + 1;
         
         // and select to find the position
         return select(W,C,r);
@@ -296,6 +317,84 @@ public:
         node_index_t outgoing_node = rank(L,"1",outgoing_edge) - 1;
         return outgoing_node;
     }
+    
+    /* returns the k-1 length label of the node pointed to by v */
+    std::string label(node_index_t v)
+    {
+        DEBUG_OUT("label");
+        DEBUG_WATCH(v);
+
+        std::string result;
+        // convert to edge index
+        // add one because using zero-based node index
+        edge_index_t i = select(L,"1",v+1);
+        
+        // k-1 because we print node labels, not entire kmers
+        for (int todo = k-1; todo > 0; todo --)
+        {
+            // lookup in F
+            int alphabet_index = 4;
+            while (F[alphabet_index] > i) alphabet_index--;
+            DEBUG_WATCH(todo)
+            DEBUG_WATCH(i)
+            DEBUG_WATCH(alphabet_index)
+            
+            // and add to the front of the string        
+            result.insert(result.begin(), alphabet[alphabet_index]);
+            
+            // and move backwards unless it's the last step
+            // or it's a $ in which case the rest of the node to the left must be $
+            // so don't go backwards
+            if ((todo > 1) && (alphabet_index != 0))
+                i = backward(i);
+            
+        }
+        return result;
+    }
+    
+    int indegree(node_index_t v)
+    {
+        DEBUG_OUT("indegree")
+        DEBUG_WATCH(v)
+        
+        // find the index of the first edge of the node`
+        edge_index_t edge = select(L,"1",v+1); 
+        DEBUG_WATCH(edge)
+        
+        // and go backwards to the first edge which can't be a flagged edge (because it's the first)
+        edge_index_t first_edge = backward(edge);
+        DEBUG_WATCH(first_edge)
+        
+        if (first_edge == no_node) return 0; // indegree is zero if backward fails
+        
+        // find the position of this symbol in W
+        std::string C;
+        C.push_back(W[first_edge][0]);
+        edge_index_t symbol_pos = rank(W,C,first_edge);
+        DEBUG_WATCH(symbol_pos)
+
+        // advance one to find the position of the next non-flagged version of this symbol
+        edge_index_t last_edge = select(W,C,symbol_pos+1);
+        DEBUG_WATCH(last_edge)
+
+        // now count the number of flagged symbols between these two positions
+        C.push_back('-');
+        edge_index_t flagged_below_first = rank(W,C,first_edge);
+        edge_index_t flagged_below_last = rank(W,C,last_edge);
+        DEBUG_WATCH(flagged_below_first)
+        DEBUG_WATCH(flagged_below_last)
+        
+        // and the difference + 1 is the number of incoming edges
+        return flagged_below_last - flagged_below_first + 1;
+    }
+    
+    /* return the predecessing node starting with the given symbol */
+    node_index_t incoming(node_index_t, std::string C)
+    {
+        
+    }
+    
+    
 };
 
 #endif
