@@ -18,7 +18,7 @@
 #include <unordered_set>
 
 /* haven't set up with an IDE that lets me step through, so... */
-#if false
+#if true
 #define DEBUG_WATCH(v) std::cout << #v << " = " << v << std::endl;
 #define DEBUG_OUT(msg) std::cout << msg << std::endl;
 #else
@@ -69,7 +69,8 @@ public:
     
     /* the node index value for no node (possible return value from some traversal functions) */
     const node_index_t no_node = (node_index_t)(-1);
-
+    const edge_index_t no_edge = (edge_index_t)(-1);
+    
     /* constructor builds the graph */
     debruijn(const std::vector<std::string> & kmers)
     {             
@@ -225,17 +226,23 @@ public:
         return result;        
     }
     
+    /* returns the character corresponding to the position i in the array described by F */
+    size_t Findex(edge_index_t i)
+    {
+        size_t alphabet_index = F.size()-1;
+        while (F[alphabet_index] > i) alphabet_index--;
+        return alphabet_index; 
+    }
+        
     /* return index of the first edge that points to the node that the edge at i exists */
     edge_index_t backward(edge_index_t i)
     {
         // step 1 - reverse lookup into F to find which letter must be in the last column of the node list
-        size_t alphabet_index = F.size()-1;
-        while (F[alphabet_index] > i) alphabet_index--;
-        std::string C;
-        C.push_back(alphabet[alphabet_index]);    
+        size_t alphabet_index = Findex(i);
+        std::string C = std::string(1, alphabet[alphabet_index]);
         
         // can't go backwards from $
-        if (alphabet_index == 0) return no_node;
+        if (C == "$") return no_node;
         
         // steps 2 & 3.1 - find the rank in L to the base and the current edge 
         size_t rank_to_base = (alphabet_index == 0) ? 0 : rank(L, "1", F[alphabet_index]-1);
@@ -249,6 +256,20 @@ public:
         
         // and select to find the position
         return select(W,C,r);
+    }
+    
+    /* returns the zero-based index of the first edge of the node v (also zero-based) */
+    edge_index_t node_to_edge(node_index_t v)
+    {
+        return select(L, "1", v+1);
+    }
+    
+    /* returns the zero-based index of the node that edge i belongs to */
+    node_index_t edge_to_node(edge_index_t i)
+    {
+        // subtract BEFORE doing the rank because we don't know whether this is the last edge
+        // of the node or not. 
+        return rank(L, "1", i - 1);
     }
     
     /* return the number of outgoing edges from node v */
@@ -347,10 +368,81 @@ public:
         return flagged_below_last - flagged_below_first + 1;
     }
     
+    /* finds the value of i where F(i) = desired, where i is in the range [first,last]
+       and where F[i] is increasing with i, i.e. F(i+1) >= F(i) 
+       returns fail_value if not found 
+       result_type is the type of F(i)
+       index_type is the type of i */
+    template <typename result_type, typename index_type, class F>
+    index_type binary_search(index_type first, index_type last, result_type desired, index_type fail_value, F f) {
+        while ( first <= last ) {
+            size_t mid = (last + first) / 2;
+
+            result_type temp = f(mid);
+            
+            if (temp == desired) return mid;
+            else if (temp < desired) first = mid + 1;
+            else 
+                // must be temp > desired
+                last = mid - 1;
+        }
+        return fail_value;
+    }
+    
     /* return the predecessing node starting with the given symbol */
-    node_index_t incoming(node_index_t, std::string C)
+    node_index_t incoming(node_index_t i, std::string X)
     {
-        return no_node;    
+        // find the last letter of the node pointed to by i, which is the letter of the incoming edge
+        std::string C = std::string(1, alphabet[Findex(node_to_edge(i))]);
+        
+        // find the first of the incoming edges
+        edge_index_t first_edge = backward(node_to_edge(i));
+        node_index_t first_node = edge_to_node(first_edge);
+        
+        DEBUG_OUT("incoming");
+        DEBUG_WATCH(i)
+        DEBUG_WATCH(X)
+        DEBUG_WATCH(C)
+        DEBUG_WATCH(first_edge)
+        DEBUG_WATCH(first_node)
+
+        // check the label of the node belonging to first edge in case this is the one we are looking for
+        std::string first_label = label(first_node);
+        DEBUG_WATCH(first_label)
+        if (first_label[0] == X[0]) return first_node;
+        
+        // find the next occurance of C, which gives an upper bound on the edge indexes
+        edge_index_t next_C = select(W, C, rank(W, C, first_edge) + 1);
+        
+        // find the range of Cminuses we need to test
+        std::string Cminus = C + std::string("-");
+        edge_index_t first_Cminus = rank(W, Cminus, first_edge)+1;
+        edge_index_t last_Cminus = rank(W, Cminus, next_C);
+        
+        DEBUG_WATCH(first_node)
+        DEBUG_WATCH(next_C)
+        DEBUG_WATCH(Cminus)
+        DEBUG_WATCH(first_Cminus)
+        DEBUG_WATCH(last_Cminus)
+
+        // and do a binary search
+        // the first letter of the label will be in ascending order within the range of nodes that 
+        // have the same remaining letter, because of the sort.
+        edge_index_t found_index = binary_search(first_Cminus, last_Cminus, X[0], no_edge,
+            [&](edge_index_t test_index){
+                // find the node label
+                node_index_t test_node = edge_to_node(select(W, Cminus, test_index));
+                std::string test_label = label(test_node);
+                DEBUG_WATCH(test_index)
+                DEBUG_WATCH(test_node)
+                DEBUG_WATCH(test_label)
+                
+                // and return the first character
+                return test_label[0];
+            });
+        DEBUG_OUT(found_index)
+        if (found_index == no_edge) return no_node;
+        else return edge_to_node(select(W, Cminus, found_index));
     }
     
     

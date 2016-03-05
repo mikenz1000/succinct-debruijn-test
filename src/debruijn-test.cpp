@@ -82,6 +82,8 @@ class test_debruijn_t : public unit_test
         check_equal(2,db.indegree(1), "indegree(1)");
         check_equal(2,db.indegree(6), "indegree(6)");
         check_equal(1,db.indegree(2), "indegree(2)");
+        
+        check_equal(4UL,db.incoming(6,"T"), "incoming(6,T)");
     }
     
 } test_debruijn;
