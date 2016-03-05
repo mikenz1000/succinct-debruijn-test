@@ -16,6 +16,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include "rank_select.hpp"
 
 /* haven't set up with an IDE that lets me step through, so... */
 #if true
@@ -28,6 +29,17 @@
 
 class debruijn
 {
+public:
+    /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
+    typedef size_t edge_index_t;
+    typedef size_t node_index_t;
+    typedef uint8_t edge_t;
+    
+    /* the node index value for no node (possible return value from some traversal functions) */
+    const node_index_t no_node = (node_index_t)(-1);
+    const edge_index_t no_edge = (edge_index_t)(-1);
+    
+ protected:
     /* when we build the graph we need to store this edge data
        it corresponds to one row in the tables in the paper 
        e.g. the second row of the table in the paper is CGA C */
@@ -54,22 +66,23 @@ class debruijn
     std::string alphabet = "$ACGT";
     
     /* The edge letter array */
-    std::vector<std::string> W;
+    rank_select<edge_t> W;
     
     /* The array of bits indicating if this edge is the last for the node, stored as '0' and '1' */
-    std::vector<std::string> L;
+    rank_select<bool> L;
     
     /* the length of the kmers */
     int k;
     
-public:  
-     /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
-    typedef size_t edge_index_t;
-    typedef size_t node_index_t;
+    /* the edge flag is stored in the high bit of an 8 bit char */
+    edge_t edge_flag(edge_t x, bool flag)
+    {
+        x = x & 0x7f;
+        if (flag) return x | 0x80;
+        else return x;
+    }
     
-    /* the node index value for no node (possible return value from some traversal functions) */
-    const node_index_t no_node = (node_index_t)(-1);
-    const edge_index_t no_edge = (edge_index_t)(-1);
+public:  
     
     /* constructor builds the graph */
     debruijn(const std::vector<std::string> & kmers)
@@ -122,6 +135,7 @@ public:
         
         // generate L (by going backwards through the nodes)
         std::string last_node = "";
+        std::vector<bool> _L(edges.size(), false);
         for (int ix = edges.size()-1;ix >= 0;ix --)
         {
             edge * i = &edges[ix];
@@ -129,17 +143,18 @@ public:
             if (last_node != i->node_rev)
             {
                 last_node = i->node_rev;
-                L.insert(L.begin(), "1");
+                _L[ix] = true;
             }           
-            else 
-                L.insert(L.begin(), "0");
+            // else the false value is what we want
         }
+        L = rank_select<bool>(_L.begin(), _L.end());
              
         
         // and output
         F.push_back(0); // $ always starts 
         int alphabet_index = 0;
         int edge_index = 0;
+        std::vector<edge_t> _W;
         for (auto i = edges.begin();i != edges.end();i ++)
         {
             while (alphabet[alphabet_index] != i->node_rev[0]) 
@@ -148,66 +163,24 @@ public:
                 alphabet_index++;                
             }
             edge_index ++;
-            std::cout << (*i).node_rev << " " << (*i).edge << std::endl;
-            W.push_back(i->edge);
+            
+            // if the length of edge is 2 then it's got the minus flag
+            _W.push_back(edge_flag(i->edge[0], i->edge.length() == 2));
         }
-        
+        W = rank_select<edge_t>(_W.begin(), _W.end());
     }    
-    
-    /* write the graph data to cout */
-    void dump()
-    {
-        std::cout << "L\tW" << std::endl;
-        {
-            for (auto i = L.begin(), j = W.begin();i != L.end(); i++,j++)
-                std::cout << *i << "\t" << *j << std::endl;
-        }
-        for (int i = 0;i < F.size();i ++)
-        {
-            std::cout << "F[" << alphabet[i] << "] = " << F[i] << std::endl;
-        }
-    } 
-    
-    /* returns the number of occurances of c on the range [0,i] */
-    size_t rank(const std::vector<std::string> & list, const std::string & c, size_t i)
-    {
-        size_t result = 0;
-        for (size_t j = 0;j <= i;j ++)
-            if (list[j] == c) result++;
-        return result;
-    }
-    
-    /* return the position of the ith occurance of c
-       or list.size() if there are only i-1 occurances */
-    size_t select(const std::vector<std::string> & list, const std::string & c, size_t i)
-    {
-        size_t counter = 0;
-        for (size_t j = 0;j < list.size(); j++)
-        {
-            if (list[j] == c)
-            {
-                counter++;
-                if (counter == i) return j;
-            }
-        }
-        
-        // if we try to select the n+1'th when there are only n, return the index one past the end of the array
-        if (counter == i-1) return list.size();
-        
-        throw std::runtime_error("select out of range");
-    }
     
     /* return index of the last edge of the node pointed to by edge i */
     edge_index_t forward(edge_index_t i)
     {
         // find the edge label
-        std::string C = W[i];
+        edge_t C = edge_flag(W[i],false);
         
         // step 1 - determine the rank
-        size_t r = rank(W,C,i);
+        size_t r = W.rank(C,i);
         
         // step 2 - find first occurance
-        std::string::size_type alphabet_index = alphabet.find(C[0]);    
+        std::string::size_type alphabet_index = alphabet.find(C);    
         if (alphabet_index == std::string::npos) 
             throw std::runtime_error("alphabet not recognised"); 
             
@@ -218,10 +191,10 @@ public:
         size_t first_occurance = F[alphabet_index];
         
         // step 3 - find rank of the edge just before the base (hence the minus 1)
-        size_t rank_to_base = (first_occurance == 0) ? 0 : rank(L,"1",first_occurance-1);
+        size_t rank_to_base = (first_occurance == 0) ? 0 : L.rank(true,first_occurance-1);
         
         // step 4 - add r and "select" to find the edge index of the r'th edge of the node
-        size_t result = select(L,"1",rank_to_base + r); 
+        size_t result = L.select(true, rank_to_base + r); 
         
         return result;        
     }
@@ -245,23 +218,23 @@ public:
         if (C == "$") return no_node;
         
         // steps 2 & 3.1 - find the rank in L to the base and the current edge 
-        size_t rank_to_base = (alphabet_index == 0) ? 0 : rank(L, "1", F[alphabet_index]-1);
+        size_t rank_to_base = (alphabet_index == 0) ? 0 : L.rank(true, F[alphabet_index]-1);
         
         // we don't know if we point to an edge that has L=1 or L=0 so rank to the edge BELOW it, which will either
         // be the same node and L=0 OR the node below, 
-        size_t rank_to_current_edge = (i == 0) ? 0 : rank(L, "1", i-1);
+        size_t rank_to_current_edge = (i == 0) ? 0 : L.rank(true, i-1);
         
         // step 3.2 "we are at second C" or whatever
         size_t r = rank_to_current_edge - rank_to_base + 1;
         
         // and select to find the position
-        return select(W,C,r);
+        return W.select(C[0],r);
     }
     
     /* returns the zero-based index of the first edge of the node v (also zero-based) */
     edge_index_t node_to_edge(node_index_t v)
     {
-        return select(L, "1", v+1);
+        return L.select(true, v+1);
     }
     
     /* returns the zero-based index of the node that edge i belongs to */
@@ -269,17 +242,17 @@ public:
     {
         // subtract BEFORE doing the rank because we don't know whether this is the last edge
         // of the node or not. 
-        return rank(L, "1", i - 1);
+        return L.rank(true, i - 1);
     }
     
     /* return the number of outgoing edges from node v */
     int outdegree(node_index_t v)
     {
         // select to find the position of the v'th 1
-        edge_index_t position = select(L, "1", v);
+        edge_index_t position = L.select(true, v);
         
         // select to find the position of the previous node (v-1)th */
-        edge_index_t previous = (v == 0) ? 0 : select(L, "1", v-1);      
+        edge_index_t previous = (v == 0) ? 0 : L.select(true, v-1);      
         
         // "boom!" the difference between the edge indexes tells us how many edges leave that node (minus one)
         // slight typo in the text it should be select(7) - select(6) + 1 = 7 - 6 + 1 = 2 */
@@ -292,14 +265,14 @@ public:
     {
         // step 0 (not in the paper)
         // find the last edge of the node
-        edge_index_t first_edge = select(L,"1",v)+1;
-        edge_index_t last_edge = select(L,"1",v+1);
+        edge_index_t first_edge = L.select(true,v)+1;
+        edge_index_t last_edge = L.select(true,v+1);
         
         // step 1 - find the number of C's before first edge with matching C
-        int C_index = rank(W,C,last_edge);
+        int C_index = W.rank(C[0],last_edge);
         
         // then select the C_index'th C 
-        edge_index_t C_edge = select(W,C,C_index);
+        edge_index_t C_edge = W.select(C[0],C_index);
         
         // is it within the range of this node?    
         if (C_edge < first_edge) return no_node;
@@ -309,7 +282,7 @@ public:
         
         // and convert to a node index
         // (subtract 1 because if the rank is 1 it is the first node = 0th)
-        node_index_t outgoing_node = rank(L,"1",outgoing_edge) - 1;
+        node_index_t outgoing_node = L.rank(true,outgoing_edge) - 1;
         return outgoing_node;
     }
     
@@ -319,7 +292,7 @@ public:
         std::string result;
         // convert to edge index
         // add one because using zero-based node index
-        edge_index_t i = select(L,"1",v+1);
+        edge_index_t i = L.select(true,v+1);
         
         // k-1 because we print node labels, not entire kmers
         for (int todo = k-1; todo > 0; todo --)
@@ -344,7 +317,7 @@ public:
     int indegree(node_index_t v)
     {
         // find the index of the first edge of the node`
-        edge_index_t edge = select(L,"1",v+1); 
+        edge_index_t edge = L.select(true,v+1); 
         
         // and go backwards to the first edge which can't be a flagged edge (because it's the first)
         edge_index_t first_edge = backward(edge);
@@ -352,17 +325,16 @@ public:
         if (first_edge == no_node) return 0; // indegree is zero if backward fails
         
         // find the position of this symbol in W
-        std::string C;
-        C.push_back(W[first_edge][0]);
-        edge_index_t symbol_pos = rank(W,C,first_edge);
+        edge_t C = edge_flag(W[first_edge],false);
+        edge_index_t symbol_pos = W.rank(C,first_edge);
         
         // advance one to find the position of the next non-flagged version of this symbol
-        edge_index_t last_edge = select(W,C,symbol_pos+1);
+        edge_index_t last_edge = W.select(C,symbol_pos+1);
         
         // now count the number of flagged symbols between these two positions
-        C.push_back('-');
-        edge_index_t flagged_below_first = rank(W,C,first_edge);
-        edge_index_t flagged_below_last = rank(W,C,last_edge);
+        C = edge_flag(C, true);
+        edge_index_t flagged_below_first = W.rank(C,first_edge);
+        edge_index_t flagged_below_last = W.rank(C,last_edge);
         
         // and the difference + 1 is the number of incoming edges
         return flagged_below_last - flagged_below_first + 1;
@@ -390,59 +362,41 @@ public:
     }
     
     /* return the predecessing node starting with the given symbol */
-    node_index_t incoming(node_index_t i, std::string X)
+    node_index_t incoming(node_index_t i, edge_t X)
     {
         // find the last letter of the node pointed to by i, which is the letter of the incoming edge
-        std::string C = std::string(1, alphabet[Findex(node_to_edge(i))]);
+        edge_t C = alphabet[Findex(node_to_edge(i))];
         
         // find the first of the incoming edges
         edge_index_t first_edge = backward(node_to_edge(i));
         node_index_t first_node = edge_to_node(first_edge);
         
-        DEBUG_OUT("incoming");
-        DEBUG_WATCH(i)
-        DEBUG_WATCH(X)
-        DEBUG_WATCH(C)
-        DEBUG_WATCH(first_edge)
-        DEBUG_WATCH(first_node)
-
         // check the label of the node belonging to first edge in case this is the one we are looking for
         std::string first_label = label(first_node);
-        DEBUG_WATCH(first_label)
-        if (first_label[0] == X[0]) return first_node;
+        if (first_label[0] == X) return first_node;
         
         // find the next occurance of C, which gives an upper bound on the edge indexes
-        edge_index_t next_C = select(W, C, rank(W, C, first_edge) + 1);
+        edge_index_t next_C = W.select(C, W.rank(C, first_edge) + 1);
         
         // find the range of Cminuses we need to test
-        std::string Cminus = C + std::string("-");
-        edge_index_t first_Cminus = rank(W, Cminus, first_edge)+1;
-        edge_index_t last_Cminus = rank(W, Cminus, next_C);
+        edge_t Cminus = edge_flag(C,true);
+        edge_index_t first_Cminus = W.rank(Cminus, first_edge)+1;
+        edge_index_t last_Cminus = W.rank(Cminus, next_C);
         
-        DEBUG_WATCH(first_node)
-        DEBUG_WATCH(next_C)
-        DEBUG_WATCH(Cminus)
-        DEBUG_WATCH(first_Cminus)
-        DEBUG_WATCH(last_Cminus)
-
         // and do a binary search
         // the first letter of the label will be in ascending order within the range of nodes that 
         // have the same remaining letter, because of the sort.
-        edge_index_t found_index = binary_search(first_Cminus, last_Cminus, X[0], no_edge,
+        edge_index_t found_index = binary_search(first_Cminus, last_Cminus, X, no_edge,
             [&](edge_index_t test_index){
                 // find the node label
-                node_index_t test_node = edge_to_node(select(W, Cminus, test_index));
+                node_index_t test_node = edge_to_node(W.select(Cminus, test_index));
                 std::string test_label = label(test_node);
-                DEBUG_WATCH(test_index)
-                DEBUG_WATCH(test_node)
-                DEBUG_WATCH(test_label)
                 
                 // and return the first character
                 return test_label[0];
             });
-        DEBUG_OUT(found_index)
         if (found_index == no_edge) return no_node;
-        else return edge_to_node(select(W, Cminus, found_index));
+        else return edge_to_node(W.select(Cminus, found_index));
     }
     
     

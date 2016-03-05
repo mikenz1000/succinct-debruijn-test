@@ -5,41 +5,11 @@ http://alexbowe.com/succinct-debruijn-graphs/
 
 Educational = just uses string and vector types instead of succinct bitvectors etc
 
+Default make target runs the tests
+
 Output
 ```
 [section] simple debruijn test based on the example data in the paper
-$$$ T
-AGC C
-AT$ C
-CAG G
-CAG T
-CAT G-
-CTG G
-GCA A
-GCA T
-GCT A-
-T$$ A
-TCA $
-TGC C
-L	W
-1	T
-1	C
-1	C
-0	G
-1	T
-1	G-
-1	G
-0	A
-1	T
-1	A-
-1	A
-1	$
-1	C
-F[$] = 0
-F[A] = 1
-F[C] = 3
-F[G] = 7
-F[T] = 10
 [passed] forward(2) (desired = 5, actual = 5)
 [passed] backward(5) (desired = 2, actual = 2)
 [passed] backward(1) (desired = 7, actual = 7)
@@ -76,4 +46,8 @@ F[T] = 10
 [passed] indegree(1) (desired = 2, actual = 2)
 [passed] indegree(6) (desired = 2, actual = 2)
 [passed] indegree(2) (desired = 1, actual = 1)
+[passed] incoming(6,T) (desired = 4, actual = 4)
+[section] rank select tests
+[passed] rank(5) (desired = 3, actual = 3)
+[passed] select(4) (desired = 7, actual = 7)
 ```

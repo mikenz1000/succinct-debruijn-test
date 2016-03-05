@@ -35,7 +35,6 @@ class test_debruijn_t : public unit_test
         
         // build the graph!
         debruijn db(kmers);
-        db.dump();
                 
         // and .. test it
         check_equal(5UL, db.forward(2), "forward(2)");
@@ -83,7 +82,7 @@ class test_debruijn_t : public unit_test
         check_equal(2,db.indegree(6), "indegree(6)");
         check_equal(1,db.indegree(2), "indegree(2)");
         
-        check_equal(4UL,db.incoming(6,"T"), "incoming(6,T)");
+        check_equal(4UL,db.incoming(6,'T'), "incoming(6,T)");
     }
     
 } test_debruijn;
