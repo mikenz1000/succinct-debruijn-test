@@ -426,24 +426,33 @@ public:
         edge_index_t first_Cminus = W.rank(Cminus, first_edge)+1;
         edge_index_t last_Cminus = W.rank(Cminus, next_C);
         
-        // this can happen if the Cminus below first_edge was the last one in the array
-        if (last_Cminus < first_Cminus)
-        {
-            return no_node;
-        }
+        // note that last_Cminus may end up less than first_Cminus if first_Cminus was in fact the 
+        // last one before the end of the array.  If so it will drop straight through the binary search
+        // below
         
-        // and do a binary search
+        // binary search to find the rank of the Cminus that gives us a label with the desired starting letter
         // the first letter of the label will be in ascending order within the range of nodes that 
         // have the same remaining letter, because of the sort.
-        edge_index_t found_index = binary_search(first_Cminus, last_Cminus, X, no_edge,
-            [&](edge_index_t test_index){
-                // find the node label
-                node_index_t test_node = edge_to_node(W.select(Cminus, test_index));
-                std::string test_label = label(test_node);
-                
-                // and return the first character
-                return test_label[0];
-            });
+        edge_index_t found_index = no_edge;
+        
+        while ( first_Cminus <= last_Cminus ) {
+            size_t mid = (last_Cminus + first_Cminus) / 2;
+
+            node_index_t test_node = edge_to_node(W.select(Cminus, mid));
+            std::string test_label = label(test_node);
+            edge_t first_char = test_label[0];    
+            
+            if (first_char == X) 
+            {
+                found_index = mid;
+                first_Cminus = last_Cminus + 1; // force exit of the loop.
+            }
+            else 
+                if (first_char < X) first_Cminus = mid + 1;
+            else 
+                // must be temp > desired
+                last_Cminus = mid - 1;
+        }
         if (found_index == no_edge) return no_node;
         else return edge_to_node(W.select(Cminus, found_index));
     }
