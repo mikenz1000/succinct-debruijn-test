@@ -51,7 +51,7 @@ class test_debruijn_random_t : public unit_test
             kmers.push_back(kmer);
         }
         // build the graphs
-        debruijn_succinct db(kmers);
+        debruijn_succinct db(kmers,alphabet);
         debruijn_basic db_basic(kmers);
         
         debruijn_comparer dc(db_basic,db,alphabet);

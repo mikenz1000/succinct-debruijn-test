@@ -5,6 +5,7 @@
     
     This is an exercise in understanding the algorithm.  Not in any way meant to be efficient...
  
+    alphabet must always start with the 'terminator' char (normally $)
 */
     
 #ifndef __DEBRUIJN_SUCCINCT_HPP
@@ -12,20 +13,11 @@
 
 #include <string>
 #include <algorithm>
-#include <iostream>
 #include <vector>
 #include <string>
 #include <unordered_set>
 #include "rank_select.hpp"
-
-/* haven't set up with an IDE that lets me step through, so... */
-#if true
-#define DEBUG_WATCH(v) std::cout << #v << " = " << v << std::endl;
-#define DEBUG_OUT(msg) std::cout << msg << std::endl;
-#else
-#define DEBUG_WATCH(v)
-#define DEBUG_OUT(msg)
-#endif
+#include "debugging.hpp"
 
 class debruijn_succinct
 {
@@ -63,7 +55,7 @@ public:
     
     /* the indexes of the start of each letter in the last column of the nodes list */
     std::vector<int> F;
-    std::string alphabet = "$ACGT";
+    std::string alphabet;
     
     /* The edge letter array */
     rank_select<edge_t> W;
@@ -82,10 +74,16 @@ public:
         else return x;
     }
     
+    /* the first character of the alphabet is always the terminator */
+    edge_t terminator()
+    {
+        return alphabet[0];
+    }
 public:  
     
     /* constructor builds the graph */
-    debruijn_succinct(const std::vector<std::string> & kmers)
+    debruijn_succinct(const std::vector<std::string> & kmers, const std::string & alphabet)
+        : alphabet(alphabet)
     {             
         k = kmers[0].length();      
         std::vector<edge> edges;
@@ -215,7 +213,7 @@ public:
         std::string C = std::string(1, alphabet[alphabet_index]);
         
         // can't go backwards from $
-        if (C == "$") return no_node;
+        if (alphabet_index == 0) return no_node;
         
         // steps 2 & 3.1 - find the rank in L to the base and the current edge 
         size_t rank_to_base = (alphabet_index == 0) ? 0 : L.rank(true, F[alphabet_index]-1);
@@ -259,10 +257,10 @@ public:
         edge_index_t previous = (v == 0) ? -1 : L.select(true, v);      
         
         // and ignore any outgoing edges that are $
-        edge_index_t terminators = W.rank('$',position) - ((previous == -1) ? 0 : W.rank('$',previous));
+        edge_index_t terminators = W.rank(terminator(),position) - ((previous == -1) ? 0 : W.rank(terminator(),previous));
         
         // also check for flagged $
-        terminators += W.rank(edge_flag('$',true),position) - ((previous == -1) ? 0 : W.rank(edge_flag('$',true),previous));
+        terminators += W.rank(edge_flag(terminator(),true),position) - ((previous == -1) ? 0 : W.rank(edge_flag(terminator(),true),previous));
  
         // "boom!" the difference between the edge indexes tells us how many edges leave that node (minus one)
         // slight typo in the text it should be select(7) - select(6) + 1 = 7 - 6 + 1 = 2 */
@@ -277,7 +275,7 @@ public:
         // convert from node index to a range of edge indexes
        
         // if we follow the $ we are at the end of the graph
-        if (C == '$') return no_node;
+        if (C == terminator()) return no_node;
         
         // first_edge is the first edge of the set of edges comprising this node
         // we effectively add one to the last edge of the node below because L lets us find 

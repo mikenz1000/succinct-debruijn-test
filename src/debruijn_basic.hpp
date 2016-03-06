@@ -10,19 +10,11 @@
 
 #include <string>
 #include <algorithm>
-#include <iostream>
 #include <vector>
 #include <string>
 #include <list>
+#include "debugging.hpp"
 
-/* haven't set up with an IDE that lets me step through, so... */
-#if true
-#define DEBUG_WATCH(v) std::cout << #v << " = " << v << std::endl;
-#define DEBUG_OUT(msg) std::cout << msg << std::endl;
-#else
-#define DEBUG_WATCH(v)
-#define DEBUG_OUT(msg)
-#endif
 
 class debruijn_basic
 {
@@ -37,8 +29,6 @@ public:
     const edge_index_t no_edge = (edge_index_t)(-1);
     
  protected:        
-    std::string alphabet = "$ACGT";
-
     /* the length of the kmers */
     int k;
     

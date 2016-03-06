@@ -38,7 +38,7 @@ class test_debruijn_t : public unit_test
         kmers.push_back(kmer);
         
         // build the graph!
-        debruijn_succinct db(kmers);
+        debruijn_succinct db(kmers,alphabet);
                 
         // and .. test it
         check_equal(5UL, db.forward(2), "forward(2)");
