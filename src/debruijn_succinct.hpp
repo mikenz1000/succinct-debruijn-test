@@ -25,6 +25,8 @@ public:
     /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
     typedef size_t edge_index_t;
     typedef size_t node_index_t;
+    
+    /* the type of an edge, or a letter in a node label */
     typedef uint8_t edge_t;
     
     /* the node index value for no node (possible return value from some traversal functions) */
@@ -101,7 +103,7 @@ public:
         // avoid processing kmers more than once
         std::unordered_set<std::string> done;
         
-        // the incoming edge detection e.g. for the kmer GACG the incoming edge detector is ACG
+        // the incoming edge detection to do the edge flagging e.g. for the kmer GACG the incoming edge detector is ACG
         std::unordered_set<std::string> incoming;
         
         // convert the kmers into nodes 
@@ -212,7 +214,6 @@ public:
     {
         // step 1 - reverse lookup into F to find which letter must be in the last column of the node list
         size_t alphabet_index = Findex(i);
-        std::string C = std::string(1, alphabet[alphabet_index]);
         
         // can't go backwards from $
         if (alphabet_index == 0) return no_node;
@@ -228,7 +229,7 @@ public:
         size_t r = rank_to_current_edge - rank_to_base + 1;
         
         // and select to find the position
-        return W.select(C[0],r);
+        return W.select(alphabet[alphabet_index],r);
     }
     
     /* returns the zero-based index of the first edge of the node v (also zero-based) */
@@ -341,8 +342,7 @@ public:
             // or it's a $ in which case the rest of the node to the left must be $
             // so don't go backwards
             if ((todo > 1) && (alphabet_index != 0))
-                i = backward(i);
-            
+                i = backward(i);           
         }
         return result;
     }
@@ -372,27 +372,6 @@ public:
         
         // and the difference + 1 is the number of incoming edges
         return flagged_below_last - flagged_below_first + 1;
-    }
-    
-    /* finds the value of i where F(i) = desired, where i is in the range [first,last]
-       and where F[i] is increasing with i, i.e. F(i+1) >= F(i) 
-       returns fail_value if not found 
-       result_type is the type of F(i)
-       index_type is the type of i */
-    template <typename result_type, typename index_type, class F>
-    index_type binary_search(index_type first, index_type last, result_type desired, index_type fail_value, F f) {
-        while ( first <= last ) {
-            size_t mid = (last + first) / 2;
-
-            result_type temp = f(mid);
-            
-            if (temp == desired) return mid;
-            else if (temp < desired) first = mid + 1;
-            else 
-                // must be temp > desired
-                last = mid - 1;
-        }
-        return fail_value;
     }
     
     /* return the predecessing node starting with the given symbol */
@@ -433,9 +412,9 @@ public:
         // binary search to find the rank of the Cminus that gives us a label with the desired starting letter
         // the first letter of the label will be in ascending order within the range of nodes that 
         // have the same remaining letter, because of the sort.
-        edge_index_t found_index = no_edge;
-        
-        while ( first_Cminus <= last_Cminus ) {
+        edge_index_t found_index = no_edge;       
+        while ( first_Cminus <= last_Cminus ) 
+        {
             size_t mid = (last_Cminus + first_Cminus) / 2;
 
             node_index_t test_node = edge_to_node(W.select(Cminus, mid));
