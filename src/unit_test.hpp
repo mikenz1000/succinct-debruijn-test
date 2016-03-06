@@ -9,20 +9,20 @@ class unit_test
 {
 protected:
     /* Call this to indicate the start of a section of the testing */
-    void section(const char * name);
+    void section(const std::string & name);
     
     /* Call this to record the outcome of each test 
        If outcome is false the test failed 
        returns outcome so you can abort the rest of the test if that makes sense */
-    bool check(bool outcome, const char * description);
+    bool check(bool outcome, const std::string & description);
     
     template<typename T>
-    bool check_equal(const T & desired, const T & actual, const char * description)
+    bool check_equal(const T & desired, const T & actual, const std::string & description)
     {
         std::stringstream s;
         s << description; 
         s << " (desired = " << desired << ", actual = " << actual << ")";
-        return check(desired == actual, s.str().c_str());
+        return check(desired == actual, s.str());
     }
 public:
     /* this method must be overridden in order to execute the test */

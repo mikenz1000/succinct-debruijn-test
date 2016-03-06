@@ -14,12 +14,12 @@ list<unit_test*> & tests()
     return *tests;    
 }
 
-void unit_test::section(const char * name)
+void unit_test::section(const std::string & name)
 {
     std::cout << "[section] " << name << terminal::reset << endl;
 }
 
-bool unit_test::check(bool outcome, const char * description)
+bool unit_test::check(bool outcome, const std::string & description)
 {
     if (!outcome)
     {

@@ -7,8 +7,8 @@
  
 */
     
-#ifndef __DEBRUIJN_HPP
-#define __DEBRUIJN_HPP
+#ifndef __DEBRUIJN_SUCCINCT_HPP
+#define __DEBRUIJN_SUCCINCT_HPP
 
 #include <string>
 #include <algorithm>
@@ -27,7 +27,7 @@
 #define DEBUG_OUT(msg)
 #endif
 
-class debruijn
+class debruijn_succinct
 {
 public:
     /* for clarity, variables that store indexes of edges and nodes use these two typdefs */
@@ -85,7 +85,7 @@ public:
 public:  
     
     /* constructor builds the graph */
-    debruijn(const std::vector<std::string> & kmers)
+    debruijn_succinct(const std::vector<std::string> & kmers)
     {             
         k = kmers[0].length();      
         std::vector<edge> edges;
@@ -242,48 +242,77 @@ public:
     {
         // subtract BEFORE doing the rank because we don't know whether this is the last edge
         // of the node or not. 
-        return L.rank(true, i - 1);
+        // if it's the 0th edge we know it's the 0th node
+        if (i == 0) return 0;
+        else return L.rank(true, i - 1);
     }
     
     /* return the number of outgoing edges from node v */
     int outdegree(node_index_t v)
     {
         // select to find the position of the v'th 1
-        edge_index_t position = L.select(true, v);
-        
+        // add one because nodes indexes are zero-based
+        // position will then point to the last edge of the node
+        edge_index_t position = L.select(true, v+1);
+
         // select to find the position of the previous node (v-1)th */
-        edge_index_t previous = (v == 0) ? 0 : L.select(true, v-1);      
+        edge_index_t previous = (v == 0) ? -1 : L.select(true, v);      
         
+        // and ignore any outgoing edges that are $
+        edge_index_t terminators = W.rank('$',position) - ((previous == -1) ? 0 : W.rank('$',previous));
+
         // "boom!" the difference between the edge indexes tells us how many edges leave that node (minus one)
         // slight typo in the text it should be select(7) - select(6) + 1 = 7 - 6 + 1 = 2 */
-        return position - previous + 1;  
+        return position - previous - terminators;  
     }
     
     /* return the node you get to by following edge labelled by symbol c,
        or no_node if there is no edge */
-    node_index_t outgoing(node_index_t v, std::string C)
+    node_index_t outgoing(node_index_t v, edge_t C)
     {
         // step 0 (not in the paper)
-        // find the last edge of the node
-        edge_index_t first_edge = L.select(true,v)+1;
+        // convert from node index to a range of edge indexes
+       
+        // if we follow the $ we are at the end of the graph
+        if (C == '$') return no_node;
+        
+        // first_edge is the first edge of the set of edges comprising this node
+        // we effectively add one to the last edge of the node below because L lets us find 
+        // last edges of nodes only
+        // for v == 0 we know the first edge is edge 0 of course
+        edge_index_t first_edge = (v == 0) ? 0 : (L.select(true,v)+1);
+        
+        // returns zero for v = 0 if first node only has one edge
         edge_index_t last_edge = L.select(true,v+1);
         
-        // step 1 - find the number of C's before first edge with matching C
-        int C_index = W.rank(C[0],last_edge);
-        
-        // then select the C_index'th C 
-        edge_index_t C_edge = W.select(C[0],C_index);
-        
-        // is it within the range of this node?    
-        if (C_edge < first_edge) return no_node;
-        
-        // return the last edge of the node that C_edge points to
-        edge_index_t outgoing_edge = forward(C_edge);
-        
-        // and convert to a node index
-        // (subtract 1 because if the rank is 1 it is the first node = 0th)
-        node_index_t outgoing_node = L.rank(true,outgoing_edge) - 1;
-        return outgoing_node;
+        // try it for both C and C- the flagged edge character
+        for (int flag = 0; flag <= 1; flag ++)
+        {
+            // determine the character we are looking for in this test
+            edge_t Cflagged = edge_flag(C, flag == 1);
+                
+            // step 1 - find the number of C's before or including the last edge
+            edge_index_t C_index = W.rank(Cflagged,last_edge);
+            
+            // if C_index is zero we didn't find ANY Cs in the range so we know this edge can't be followed
+            if (C_index == 0) continue;
+            
+            // then select the C_index'th C
+            edge_index_t C_edge = W.select(Cflagged,C_index);
+            
+            // is it within the range of this node?    
+            if (C_edge >= first_edge) 
+            {
+                // return the last edge of the node that C_edge points to
+                edge_index_t outgoing_edge = forward(C_edge);
+                
+                // and convert to a node index
+                // (subtract 1 because if the rank is 1 it is the first node = 0th)
+                node_index_t outgoing_node = L.rank(true,outgoing_edge) - 1;
+                return outgoing_node;
+            }
+        }
+        return no_node;
     }
     
     /* returns the k-1 length label of the node pointed to by v */
@@ -365,10 +394,18 @@ public:
     node_index_t incoming(node_index_t i, edge_t X)
     {
         // find the last letter of the node pointed to by i, which is the letter of the incoming edge
-        edge_t C = alphabet[Findex(node_to_edge(i))];
+        size_t alphabet_index = Findex(node_to_edge(i));
+        
+        // if the last char of the node is $ then we must be on the node with no incoming edges
+        if (alphabet_index == 0) return no_node;
+        edge_t C = alphabet[alphabet_index];
         
         // find the first of the incoming edges
         edge_index_t first_edge = backward(node_to_edge(i));
+        
+        // if backward failed then there are no incoming edges
+        if (first_edge == no_edge) return no_node;
+        
         node_index_t first_node = edge_to_node(first_edge);
         
         // check the label of the node belonging to first edge in case this is the one we are looking for
@@ -376,12 +413,19 @@ public:
         if (first_label[0] == X) return first_node;
         
         // find the next occurance of C, which gives an upper bound on the edge indexes
+        // makes use of the special return value of W.size() if we select for one greater than the number of C's
         edge_index_t next_C = W.select(C, W.rank(C, first_edge) + 1);
         
         // find the range of Cminuses we need to test
         edge_t Cminus = edge_flag(C,true);
         edge_index_t first_Cminus = W.rank(Cminus, first_edge)+1;
         edge_index_t last_Cminus = W.rank(Cminus, next_C);
+        
+        // this can happen if the Cminus below first_edge was the last one in the array
+        if (last_Cminus < first_Cminus)
+        {
+            return no_node;
+        }
         
         // and do a binary search
         // the first letter of the label will be in ascending order within the range of nodes that 
@@ -399,7 +443,11 @@ public:
         else return edge_to_node(W.select(Cminus, found_index));
     }
     
-    
+    /* returns the number of nodes i.e. value node indexes are between 0 and the result of this-1 inclusive */
+    node_index_t num_nodes()
+    {
+        return L.rank(true,L.size()-1);
+    }
 };
 
 #endif
