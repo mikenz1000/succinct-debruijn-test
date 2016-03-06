@@ -27,7 +27,7 @@ bool unit_test::check(bool outcome, const std::string & description)
     }    
     else
     {
-        std::cout << terminal::light_gray << "[passed] " << description << terminal::reset << endl;
+        //std::cout << terminal::light_gray << "[passed] " << description << terminal::reset << endl;
     }
     return outcome;
 }

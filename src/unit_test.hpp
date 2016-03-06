@@ -7,7 +7,8 @@
 
 class unit_test
 {
-protected:
+public:
+
     /* Call this to indicate the start of a section of the testing */
     void section(const std::string & name);
     
@@ -24,7 +25,7 @@ protected:
         s << " (desired = " << desired << ", actual = " << actual << ")";
         return check(desired == actual, s.str());
     }
-public:
+
     /* this method must be overridden in order to execute the test */
     virtual void operator() () = 0;    
     

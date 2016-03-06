@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include "debruijn_comparer.hpp"
 
 class test_debruijn_t : public unit_test
 {
@@ -92,64 +93,9 @@ class test_debruijn_t : public unit_test
         
         section("test succinct against basic debruijn");
         debruijn_basic db_basic(kmers);
-        for (size_t v = 0;v < db.num_nodes();v ++)
-        {
-            section((std::stringstream() << "checking node " << v).str());
-                
-            size_t v_basic = db_basic.find_node(db.label(v));
-            check_equal(true, v_basic != db.no_node, "found the label in basic");
-            check_equal(db_basic.indegree(v_basic), db.indegree(v), "indegree");
-            check_equal(db_basic.outdegree(v_basic), db.outdegree(v), "outdegree");
-
-            // and check the outgoing edges
-            for (size_t i = 0; i < alphabet.size(); i++)
-            {
-                section((std::stringstream() << "outgoing(" << v << "," << alphabet[i] << ")").str());
-                
-                // the edge we will follow
-                char x = alphabet[i];
-                
-                // find out the benchmark result
-                size_t outgoing_basic = db_basic.outgoing(v_basic, x);
-                if (outgoing_basic == db_basic.no_node)
-                {
-                    // assert it doesn't exist either in the db graph
-                    check_equal(db.no_node, db.outgoing(v, x), "outgoing expecting no_node");
-                }
-                else
-                {
-                    size_t v2 = db.outgoing(v,x);
-                    check_equal(true, v2 != db.no_node, "outgoing shouldn't return no_node");
-                    check_equal(db_basic.label(outgoing_basic), db.label(v2), "outgoing");
-                }
-            }
-            
-            // and check the incoming edges
-            for (size_t i = 0; i < alphabet.size(); i++)
-            {
-                section((std::stringstream() << "incoming(" << v << "," << alphabet[i] << ")").str());
-                
-                // the edge we will follow
-                char x = alphabet[i];
-                
-                // find out the benchmark result
-                size_t incoming_basic = db_basic.incoming(v_basic, x);
-                if (incoming_basic == db_basic.no_node)
-                {
-                    // assert it doesn't exist either in the db graph
-                    DEBUG_WATCH(incoming_basic)
-                    check_equal(db.no_node, db.incoming(v, x), "incoming expecting no_node");
-                }
-                else
-                {
-                    DEBUG_WATCH(db_basic.label(incoming_basic))
-                    size_t v2 = db.incoming(v,x);
-                    check_equal(true, v2 != db.no_node, "incoming shouldn't return no_node");
-                    check_equal(db_basic.label(incoming_basic), db.label(v2), "incoming");
-                }
-            }
-        }
-        
+        debruijn_comparer dc(db_basic,db,alphabet);
+        dc.run(this);
+       
     }
     
 } test_debruijn;

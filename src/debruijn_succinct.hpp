@@ -254,13 +254,16 @@ public:
         // add one because nodes indexes are zero-based
         // position will then point to the last edge of the node
         edge_index_t position = L.select(true, v+1);
-
+        
         // select to find the position of the previous node (v-1)th */
         edge_index_t previous = (v == 0) ? -1 : L.select(true, v);      
         
         // and ignore any outgoing edges that are $
         edge_index_t terminators = W.rank('$',position) - ((previous == -1) ? 0 : W.rank('$',previous));
-
+        
+        // also check for flagged $
+        terminators += W.rank(edge_flag('$',true),position) - ((previous == -1) ? 0 : W.rank(edge_flag('$',true),previous));
+ 
         // "boom!" the difference between the edge indexes tells us how many edges leave that node (minus one)
         // slight typo in the text it should be select(7) - select(6) + 1 = 7 - 6 + 1 = 2 */
         return position - previous - terminators;  
