@@ -55,8 +55,15 @@ public:
     
     /* the indexes of the start of each letter in the last column of the nodes list */
     std::vector<int> F;
-    std::string alphabet;
     
+    /* returns the character corresponding to the position i in the array described by F */
+    size_t Findex(edge_index_t i)
+    {
+        size_t alphabet_index = F.size()-1;
+        while (F[alphabet_index] > i) alphabet_index--;
+        return alphabet_index; 
+    }
+   
     /* The edge letter array */
     rank_select<edge_t> W;
     
@@ -73,6 +80,9 @@ public:
         if (flag) return x | 0x80;
         else return x;
     }
+    
+    /* the alphabet - the first char must be the terminator.  example alphabet $ACGT */
+    std::string alphabet;
     
     /* the first character of the alphabet is always the terminator */
     edge_t terminator()
@@ -196,14 +206,6 @@ public:
         
         return result;        
     }
-    
-    /* returns the character corresponding to the position i in the array described by F */
-    size_t Findex(edge_index_t i)
-    {
-        size_t alphabet_index = F.size()-1;
-        while (F[alphabet_index] > i) alphabet_index--;
-        return alphabet_index; 
-    }
         
     /* return index of the first edge that points to the node that the edge at i exists */
     edge_index_t backward(edge_index_t i)
@@ -232,6 +234,7 @@ public:
     /* returns the zero-based index of the first edge of the node v (also zero-based) */
     edge_index_t node_to_edge(node_index_t v)
     {
+        // add one because for the 0th node we want to find the 1st '1' in L
         return L.select(true, v+1);
     }
     
@@ -271,11 +274,11 @@ public:
        or no_node if there is no edge */
     node_index_t outgoing(node_index_t v, edge_t C)
     {
-        // step 0 (not in the paper)
-        // convert from node index to a range of edge indexes
-       
         // if we follow the $ we are at the end of the graph
         if (C == terminator()) return no_node;
+        
+        // step 0 (not in the paper)
+        // convert from node index to a range of edge indexes
         
         // first_edge is the first edge of the set of edges comprising this node
         // we effectively add one to the last edge of the node below because L lets us find 
@@ -328,7 +331,7 @@ public:
         for (int todo = k-1; todo > 0; todo --)
         {
             // lookup in F
-            int alphabet_index = 4;
+            int alphabet_index = alphabet.size()-1;
             while (F[alphabet_index] > i) alphabet_index--;
             
             // and add to the front of the string        
@@ -344,6 +347,7 @@ public:
         return result;
     }
     
+    /* returns the number of edges leading into node v */
     int indegree(node_index_t v)
     {
         // find the index of the first edge of the node`
