@@ -1,8 +1,9 @@
 # Succinct de Bruijn test
 
-An educational implementation of Succinct de Bruijn as described in this paper:
+An educational implementation of Succinct de Bruijn as described in these papers:
 
 [1] http://link.springer.com/chapter/10.1007%2F978-3-642-33122-0_18
+
 [2] http://alexbowe.com/succinct-debruijn-graphs/
 
 Educational = just uses a vector for the underlying arrays instead of compressed bitvectors etc 
