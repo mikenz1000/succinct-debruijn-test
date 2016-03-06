@@ -1,18 +1,19 @@
 # Succinct de Bruijn test
 
 An educational implementation of Succinct de Bruijn as described in this paper:
+
 http://alexbowe.com/succinct-debruijn-graphs/
 
 Educational = just uses a vector for the underlying arrays instead of compressed bitvectors etc 
 
 The default make target will run the tests.  In addition to checking the specific examples in the paper above
 it does exhaustive testing of the five methods (outdegree, outgoing, label, indegree and incoming)
-by comparing the results of the succinct implementation against a non-succinct de bruijn graph (debruijn_basic)
+by comparing the results of the succinct implementation against a non-succinct de Bruijn graph (debruijn_basic)
 
-It does this for both the graph in the paper, as well as a randomly generated graph generated from a 
-few randomly generated sequences.  (note the number of tests will vary between runs as a result)
+It does this for both the graph in the paper, as well as a randomly generated graph.  
+The number of tests will vary between runs as a result.
 
-As this was developed on Mac OSX some tweaking may be required on other platforms
+As this was developed on Mac OSX some tweaking may be required on other platforms!
 
 Output
 ```
