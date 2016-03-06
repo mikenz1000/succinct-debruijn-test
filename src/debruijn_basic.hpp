@@ -1,5 +1,5 @@
 /*
-    A basic de Bruijn graph implementation that stores data using non-succinct structures, 
+    A basic de Bruijn graph implementation that does NOT use the succinct approach
     (for validating the succinct implementation)
     
     See http://alexbowe.com/succinct-debruijn-graphs/  

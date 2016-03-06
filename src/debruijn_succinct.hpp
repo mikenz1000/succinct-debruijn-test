@@ -1,9 +1,9 @@
 /*
-    Very simple (easy to follow?) Succint de Bruijn implementation using strings that should be easy to follow
+    An educational Succint de Bruijn implementation
     
     See http://alexbowe.com/succinct-debruijn-graphs/
     
-    This is an exercise in understanding the algorithm.  Not in any way meant to be efficient...
+    This is an exercise in understanding the algorithm.  Not optimised, doesn't use underlying succinct data structures
  
     alphabet must always start with the 'terminator' char (normally $)
 */

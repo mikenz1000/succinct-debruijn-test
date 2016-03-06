@@ -1,3 +1,6 @@
+/*
+    Generates a random graph and compares the succinct and basic debruijn implementations on it
+*/
 #include "unit_test.hpp"
 #include "debruijn_succinct.hpp"
 #include "debruijn_basic.hpp"

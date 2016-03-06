@@ -26,15 +26,15 @@ cleanobj:
 	-rm obj/*.o obj/dbg/*.o 
 
 clean:
-	-rm obj/*.o obj/dbg/*.o ./bloom* 
+	-rm obj/*.o obj/dbg/*.o ./exec_test* 
 
 
-bloom: obj 
-	$(CC) $(CFLAGS) $(OPT) $(LDFLAGS) -o bloom $(NONMAINOBJ) $(OBJTHIRDPARTY) obj/test.o $(LIBS)
+exec_test: obj 
+	$(CC) $(CFLAGS) $(OPT) $(LDFLAGS) -o exec_test $(NONMAINOBJ) $(OBJTHIRDPARTY) obj/test.o $(LIBS)
 
 debug : override DEF := $(DEF) -D DEBUG 
 debug : cleanobj obj/dbg
-	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG) -o bloom obj/dbg/sequence.o obj/dbg/fasta.o obj/main.o $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG) -o exec_test obj/dbg/sequence.o obj/dbg/fasta.o obj/main.o $(LIBS)
 
 objdir:
 	mkdir -p obj
@@ -58,8 +58,8 @@ obj/dbg/%.o: src/%.cpp
 obj/thirdparty/%.o: thirdparty/%.cpp
 	$(CC) $(CFLAGS) $(OPT) $(DEF) -c $? -o $@ 
 
-test: bloom
-	./bloom
+test: exec_test
+	./exec_test
 
 obj/thirdparty/SpookyV2.o: thirdparty/spookyhash/SpookyV2.cpp
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG) -o obj/thirdparty/SpookyV2.o thirdparty/spookyhash/SpookyV2.cpp

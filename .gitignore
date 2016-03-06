@@ -2,3 +2,5 @@
 *.o
 
 bloom
+
+exec_test

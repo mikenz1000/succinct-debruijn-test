@@ -1,5 +1,5 @@
 /* 
-    Defines a framework for unit testing
+    A simple framework for unit testing
 */
 #ifndef __UNIT_TEST_HPP
 #define __UNIT_TEST_HPP

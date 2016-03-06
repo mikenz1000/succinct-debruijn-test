@@ -1,3 +1,7 @@
+/* 
+    Tests the debruijn succinct implementation vs basic, using the graph in the paper 
+    http://alexbowe.com/succinct-debruijn-graphs/
+*/
 #include "unit_test.hpp"
 #include "debruijn_succinct.hpp"
 #include "debruijn_basic.hpp"
