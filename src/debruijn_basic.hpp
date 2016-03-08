@@ -80,12 +80,13 @@ public:
     }
     
 public:  
-    debruijn_basic(const std::vector<std::string> & kmers)
+    /* k is the length of the kmer 
+       the iterator describes a list of std::strings */
+    template<class InputIterator>
+    debruijn_basic(int k, InputIterator begin, InputIterator end) : k(k)
     {             
-        k = kmers[0].length();      
-        
         // convert the kmers into nodes 
-        for (auto i = kmers.begin(); i != kmers.end(); i ++)
+        for (auto i = begin; i != end; i ++)
         {
             // extract the label for this node
             std::string label = i->substr(0, i->length()-1);
@@ -119,6 +120,7 @@ public:
         }
     }      
     
+    /* finds a node given the label */
     node_index_t find_node(std::string label)
     {
         for (node_index_t i = 0;i < nodes.size();i ++)

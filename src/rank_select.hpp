@@ -27,8 +27,9 @@ public:
     rank_select() {}
     
     /* Rank function returns the number of occurances of x on the range [0,i] */
-    index_t rank(const T & x, index_t i) const
+    index_t rank(const T & x, const index_t i) const
     {
+        if ((i < 0) || (i >= size())) throw std::runtime_error("rank parameter i out of range");
         index_t result = 0;
         for (size_t j = 0;j <= i;j ++)
             if (B[j] == x) result ++;
@@ -36,9 +37,8 @@ public:
     }
     
     /* Select returns the position of the ith occurance of c
-       or list.size() if there are only i-1 occurances (to make calling code more elegant)
-       if there are less than i-1 occurances then it throws a runtime error */
-    size_t select(const T & x, index_t i) const
+       if there are less than i occurances then it throws a runtime error */
+    size_t select(const T & x, const index_t i) const
     {
         size_t counter = 0;
         for (size_t j = 0;j < B.size(); j++)
@@ -48,11 +48,7 @@ public:
                 counter++;
                 if (counter == i) return j;
             }
-        }
-        
-        // if we try to select the n+1'th when there are only n, return the index one past the end of the array
-        if (counter == i-1) return B.size();
-        
+        }        
         throw std::runtime_error("select out of range");
     }   
     

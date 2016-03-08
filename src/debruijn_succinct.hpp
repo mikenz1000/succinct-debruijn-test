@@ -91,13 +91,14 @@ public:
     {
         return alphabet[0];
     }
-public:  
-    
-    /* constructor builds the graph */
-    debruijn_succinct(const std::vector<std::string> & kmers, const std::string & alphabet)
-        : alphabet(alphabet)
+public:    
+    /* constructor builds the graph
+       begin/end describe a list of std::strings */
+    template<class InputIterator>
+    debruijn_succinct(int k, const std::string & alphabet,
+        InputIterator begin, InputIterator end)
+        : k(k), alphabet(alphabet)
     {             
-        k = kmers[0].length();      
         std::vector<edge> edges;
         
         // avoid processing kmers more than once
@@ -107,7 +108,7 @@ public:
         std::unordered_set<std::string> incoming;
         
         // convert the kmers into nodes 
-        for (auto i = kmers.begin(); i != kmers.end(); i ++)
+        for (auto i = begin; i != end; i ++)
         {
             // uniqueness enforcement
             if (done.count(*i))
@@ -260,6 +261,12 @@ public:
         // select to find the position of the previous node (v-1)th */
         edge_index_t previous = (v == 0) ? -1 : L.select(true, v);      
         
+        // the way that I implemented the data load process for multiple sequences,
+        // it is possible to end up with a node that has a $ exit (from the first seq, for example)
+        // and other exits that aren't $ (from subsequent sequences loaded)
+        // in this case we need to exclude these from the outdegree count.
+        // note that cosmo assumes that if there is a $ outgoing edge it is the only one.
+        
         // and ignore any outgoing edges that are $
         edge_index_t terminators = W.rank(terminator(),position) - ((previous == -1) ? 0 : W.rank(terminator(),previous));
         
@@ -363,8 +370,16 @@ public:
         edge_index_t symbol_pos = W.rank(C,first_edge);
         
         // advance one to find the position of the next non-flagged version of this symbol
-        edge_index_t last_edge = W.select(C,symbol_pos+1);
-        
+        edge_index_t last_edge = 
+            // but check that C wasn't actually the last occurance in W in which case the select would fail
+            (W.rank(C,num_edges()-1) != symbol_pos)
+            
+            // it wasn't the last occurance, so we can find the next occurance 
+            ? W.select(C,symbol_pos+1)
+            
+            // if that was the last C in the W array, return num_edges()-1 (the last position in the array)
+            : (num_edges()-1);
+           
         // now count the number of flagged symbols between these two positions
         C = edge_flag(C, true);
         edge_index_t flagged_below_first = W.rank(C,first_edge);
@@ -390,15 +405,24 @@ public:
         // if backward failed then there are no incoming edges
         if (first_edge == no_edge) return no_node;
         
+        // find the first node of the incoming set of edges/nodes
         node_index_t first_node = edge_to_node(first_edge);
         
         // check the label of the node belonging to first edge in case this is the one we are looking for
         std::string first_label = label(first_node);
         if (first_label[0] == X) return first_node;
         
-        // find the next occurance of C, which gives an upper bound on the edge indexes
-        // makes use of the special return value of W.size() if we select for one greater than the number of C's
-        edge_index_t next_C = W.select(C, W.rank(C, first_edge) + 1);
+        // find the next occurance of C, which gives an upper bound on the edge indexes (not refactored w/ previous method in order to aid readability)
+        edge_index_t symbol_pos = W.rank(C, first_edge);
+        edge_index_t next_C = 
+            // but check that C wasn't actually the last occurance in W in which case the select would fail
+            (W.rank(C,num_edges()-1) != symbol_pos)
+            
+            // it wasn't the last occurance, so we can find the next occurance 
+            ? W.select(C,symbol_pos+1)
+            
+            // if that was the last C in the W array, return num_edges()-1 (the last position in the array)
+            : (num_edges()-1);
         
         // find the range of Cminuses we need to test
         edge_t Cminus = edge_flag(C,true);
@@ -433,13 +457,21 @@ public:
                 last_Cminus = mid - 1;
         }
         if (found_index == no_edge) return no_node;
-        else return edge_to_node(W.select(Cminus, found_index));
+        else 
+            // we know the rank of the Cminus, convert it to an edge index and then a node index
+            return edge_to_node(W.select(Cminus, found_index));
     }
     
-    /* returns the number of nodes i.e. value node indexes are between 0 and the result of this-1 inclusive */
+    /* returns the number of nodes i.e. valid node indexes are between 0 and the result of this-1 inclusive */
     node_index_t num_nodes()
     {
         return L.rank(true,L.size()-1);
+    }
+    
+    /* returns the number of edges in the graph i.e. valid edge indexes are between 0 and the result of this-1 inclusive */
+    edge_index_t num_edges()
+    {
+        return L.size();
     }
 };
 

@@ -18,7 +18,6 @@ class test_debruijn_t : public unit_test
         section("simple debruijn test based on the example data in the paper");
         std::string test = "TACGTCGACGACT";
         std::string alphabet = "$ACGT";
-        
         const char * i = test.c_str();
         std::vector<std::string> kmers;
         std::string kmer("$$$$");
@@ -42,7 +41,7 @@ class test_debruijn_t : public unit_test
         kmers.push_back(kmer);
         
         // build the graph!
-        debruijn_succinct db(kmers,alphabet);
+        debruijn_succinct db(4,alphabet,kmers.begin(),kmers.end());
                 
         // and .. test it
         check_equal(5UL, db.forward(2), "forward(2)");
@@ -96,7 +95,7 @@ class test_debruijn_t : public unit_test
         check_equal(11UL, db.num_nodes(), "num_nodes");
         
         section("test succinct against basic debruijn");
-        debruijn_basic db_basic(kmers);
+        debruijn_basic db_basic(4,kmers.begin(),kmers.end());
         debruijn_comparer dc(db_basic,db,alphabet);
         dc.run(this);
        
